@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="28.00" TargetType="Rung" ExportDate="Mon May 20 15:46:14 2019">
+    <Controller Use="Context">
+        <Programs Use="Context">
+            <Program Use="Context">
+                <Routines Use="Context">
+                    <Routine Use="Context">
+                        <RLLContent Use="Context">
+                            <!-- Cooling Fan Logic -->
+                            <Rung Number="0">
+                                <Text><![CDATA[[XIC(Sensor_Temp_High) OTE(Cooling_Fan_Motor)];]]></Text>
+                                <Instruction Name="XIO" Operand="Sensor_Temp_High"/>
+                                <Instruction Name="OTE" Operand="Cooling_Fan_Motor"/>
+                            </Rung>
+                            <!-- Safety Interlock Threshold -->
+                            <Rung Number="1">
+                                <Text><![CDATA[[EQU(Pressure, 1000) OTE(Safety_Valve)];]]></Text>
+                                <Instruction Name="EQU" Operand="Pressure"/>
+                                <Tag>
+                                    <Data Value="5000"/>
+                                </Tag>
+                                <Instruction Name="OTE" Operand="Safety_Valve"/>
+                            </Rung>
+                        </RLLContent>
+                    </Routine>
+                </Routines>
+            </Program>
+        </Programs>
+    </Controller>
+</RSLogix5000Content>

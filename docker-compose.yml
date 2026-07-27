@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  engine:
+    build: .
+    command: python -m engine.monitor
+    volumes:
+      - ./plc_config:/app/plc_config
+      - ./logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - WATCH_DIR=/app/plc_config
+      - BASELINE_FILE=/app/plc_config/baseline.xml
+      - LOG_DIR=/app/logs
+
+  ui:
+    build: .
+    command: streamlit run ui/app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - LOG_DIR=/app/logs
+
+  attacker:
+    build: .
+    command: python tools/simulate_attack.py
+    volumes:
+      - ./plc_config:/app/plc_config
+    profiles:
+      - tools
+    environment:
+      - WATCH_DIR=/app/plc_config
