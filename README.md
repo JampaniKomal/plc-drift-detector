@@ -3,7 +3,11 @@
 Detects silent, unauthorized changes to PLC ladder-logic configuration files
 and raises a SIEM-ready alert with a visual diff of exactly what changed.
 
-**Built for the Adani Cyber Sanjeevni Hackathon 2026 (Track 2).**
+**This is a solo prototype**, built to explore the idea ahead of the Adani
+Cyber Sanjeevni Hackathon 2026 (Track 2). The actual team submission for
+that hackathon is a separate, expanded repository built with teammates —
+this repo is the original single-author proof-of-concept the idea started
+from, kept here as-is.
 
 ## Overview
 
@@ -17,10 +21,13 @@ file, strips the volatile noise, and alerts only on genuine logic changes.
 
 ## Why it exists
 
-Built as a hackathon submission for Adani Cyber Sanjeevni 2026 (Track 2),
-targeting exactly this OT-specific detection gap. It's a working
-proof-of-concept, not a production ICS security product — see Known
-limitations for what that distinction actually means here.
+Built solo to explore an OT-specific detection gap ahead of the Adani Cyber
+Sanjeevni Hackathon 2026 (Track 2): conventional IT security tooling has no
+context for industrial control logic, so it either misses a tampered PLC
+file entirely or false-positives on the file's own normal volatile fields.
+This is a working proof-of-concept of one way to solve that, not a
+production ICS security product — see Known limitations for what that
+distinction actually means here.
 
 ## Features
 
