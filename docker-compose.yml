@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   engine:
     build: .
@@ -12,6 +10,10 @@ services:
       - WATCH_DIR=/app/plc_config
       - BASELINE_FILE=/app/plc_config/baseline.xml
       - LOG_DIR=/app/logs
+      # Demo-only value for local `docker-compose up`. A real deployment
+      # must supply its own secret (e.g. via a secrets manager or .env
+      # file that is not committed) - never reuse this value.
+      - OT_GUARD_SECRET_KEY=demo-local-only-do-not-use-in-production
 
   ui:
     build: .

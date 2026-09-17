@@ -1,7 +1,7 @@
 import hmac
 import hashlib
+import os
 from lxml import etree
-import copy
 
 class L5XParser:
     """
@@ -9,7 +9,16 @@ class L5XParser:
     Strips volatile fields (timestamps, sensor values) to prevent false positives
     and focuses only on structural logic elements.
     """
-    def __init__(self, secret_key: bytes = b'OT_GUARD_SECRET_KEY'):
+    def __init__(self, secret_key: bytes = None):
+        if secret_key is None:
+            env_secret = os.environ.get('OT_GUARD_SECRET_KEY')
+            if not env_secret:
+                raise ValueError(
+                    "OT_GUARD_SECRET_KEY environment variable is not set. "
+                    "A hardcoded default would let anyone who has read this "
+                    "source (it's on GitHub) forge a matching signature."
+                )
+            secret_key = env_secret.encode('utf-8')
         self.secret_key = secret_key
 
     def normalize_xml(self, file_path: str) -> str:

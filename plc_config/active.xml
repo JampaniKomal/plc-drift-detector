@@ -9,7 +9,7 @@
                             <!-- Cooling Fan Logic -->
                             <Rung Number="0">
                                 <Text><![CDATA[[XIC(Sensor_Temp_High) OTE(Cooling_Fan_Motor)];]]></Text>
-                                <Instruction Name="XIO" Operand="Sensor_Temp_High"/>
+                                <Instruction Name="XIC" Operand="Sensor_Temp_High"/>
                                 <Instruction Name="OTE" Operand="Cooling_Fan_Motor"/>
                             </Rung>
                             <!-- Safety Interlock Threshold -->
@@ -17,7 +17,7 @@
                                 <Text><![CDATA[[EQU(Pressure, 1000) OTE(Safety_Valve)];]]></Text>
                                 <Instruction Name="EQU" Operand="Pressure"/>
                                 <Tag>
-                                    <Data Value="5000"/>
+                                    <Data Value="1000"/>
                                 </Tag>
                                 <Instruction Name="OTE" Operand="Safety_Valve"/>
                             </Rung>

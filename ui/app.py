@@ -1,9 +1,10 @@
 import streamlit as st
 import json
 import os
+import html
 
 # Configure Page
-st.set_page_config(page_title="OT-Guard Dashboard", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="OT-Guard Dashboard", layout="wide")
 
 # Custom CSS for UI Cleanliness and Dark Mode
 st.markdown("""
@@ -16,7 +17,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🛡️ OT-Guard: PLC Logic Drift Monitor")
+st.title("OT-Guard: PLC Logic Drift Monitor")
 st.markdown("Enterprise-grade configuration drift and unauthorized change detection.")
 
 LOG_FILE = os.environ.get("LOG_DIR", "/app/logs") + "/drift_alerts.jsonl"
@@ -33,9 +34,9 @@ def load_logs():
 logs = load_logs()
 
 if not logs:
-    st.success("✅ Secure. No unauthorized logic changes detected.")
+    st.success("Secure. No unauthorized logic changes detected.")
 else:
-    st.error(f"🚨 {len(logs)} Unauthorized Changes Detected!")
+    st.error(f"{len(logs)} Unauthorized Changes Detected!")
     
     for idx, log in enumerate(logs):
         with st.expander(f"[{log['timestamp']}] {log['mitre_tactic']} (Severity: {log['severity']})", expanded=(idx==0)):
@@ -50,12 +51,18 @@ else:
             diff_lines = log.get('diff_summary', '').split('\n')
             formatted_diff = ""
             for line in diff_lines:
+                # The diff content comes from the monitored PLC file itself,
+                # which is exactly what an attacker controls - it must be
+                # HTML-escaped before going into unsafe_allow_html markdown,
+                # otherwise a crafted file content is a stored-XSS payload
+                # against whoever is viewing this dashboard.
+                escaped_line = html.escape(line)
                 if line.startswith('+') and not line.startswith('+++'):
-                    formatted_diff += f'<div class="diff-add">{line}</div>'
+                    formatted_diff += f'<div class="diff-add">{escaped_line}</div>'
                 elif line.startswith('-') and not line.startswith('---'):
-                    formatted_diff += f'<div class="diff-remove">{line}</div>'
+                    formatted_diff += f'<div class="diff-remove">{escaped_line}</div>'
                 else:
-                    formatted_diff += f'<div class="diff-neutral">{line}</div>'
+                    formatted_diff += f'<div class="diff-neutral">{escaped_line}</div>'
             
             st.markdown(f"<div class='diff-container'>{formatted_diff}</div>", unsafe_allow_html=True)
             
