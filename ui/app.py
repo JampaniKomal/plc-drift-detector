@@ -1,70 +1,124 @@
-import streamlit as st
-import json
+"""OT-Guard dashboard (Streamlit). Read-only: it shows the ledger, it cannot approve anything.
+
+OTGUARD_CONFIG=demo/otguard.toml streamlit run ui/app.py
+"""
+
 import os
-import html
+from pathlib import Path
 
-# Configure Page
+import pandas as pd
+import streamlit as st
+
+from otguard import config, dashboard, ledger
+
 st.set_page_config(page_title="OT-Guard Dashboard", layout="wide")
-
-# Custom CSS for UI Cleanliness and Dark Mode
-st.markdown("""
+st.markdown(
+    """
     <style>
-        .stAlert { padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem; }
-        .diff-add { color: #00ff00; font-family: monospace; }
-        .diff-remove { color: #ff0000; font-family: monospace; }
-        .diff-neutral { color: #cccccc; font-family: monospace; }
-        .diff-container { background: #1e1e1e; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .diff-add { color: #3fb950; font-family: monospace; white-space: pre; }
+        .diff-remove { color: #f85149; font-family: monospace; white-space: pre; }
+        .diff-neutral { color: #8b949e; font-family: monospace; white-space: pre; }
+        .diff-container { background: #0d1117; padding: 10px; border-radius: 5px; overflow-x: auto; }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("OT-Guard: PLC Logic Drift Monitor")
-st.markdown("Enterprise-grade configuration drift and unauthorized change detection.")
+st.caption("Unapproved changes to PLC project files, explained and mapped to MITRE ATT&CK for ICS.")
 
-LOG_FILE = os.environ.get("LOG_DIR", "/app/logs") + "/drift_alerts.jsonl"
+config_path = os.environ.get("OTGUARD_CONFIG", "otguard.toml")
+try:
+    cfg = config.load(config_path)
+except config.ConfigError as exc:
+    st.error(f"Cannot read the configuration: {exc}")
+    st.stop()
 
-def load_logs():
-    logs = []
-    if os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "r") as f:
-            for line in f:
-                if line.strip():
-                    logs.append(json.loads(line))
-    return logs[::-1] # Reverse chronologically (newest first)
+records = [r for r in ledger.read(cfg.ledger) if "_invalid" not in r]
+key = None
+try:
+    key = config.secret_key(required=False)
+except config.ConfigError:
+    pass
+problems = ledger.verify(cfg.ledger, key)
 
-logs = load_logs()
+with st.sidebar:
+    st.subheader("Ledger")
+    st.write(f"`{Path(cfg.ledger).name}`: {len(records)} records")
+    if problems:
+        st.error("Ledger integrity check FAILED")
+        for problem in problems[:10]:
+            st.write(f"- {problem}")
+    elif key:
+        st.success("Hash chain and MACs verified")
+    else:
+        st.info("Hash chain linked; MACs not checked (no key in this process)")
+    if st.button("Refresh"):
+        st.rerun()
 
-if not logs:
-    st.success("Secure. No unauthorized logic changes detected.")
+status = dashboard.file_status(records, [p.name for p in cfg.watched])
+columns = st.columns(max(len(status), 1))
+for column, (name, info) in zip(columns, status.items(), strict=False):
+    with column:
+        state = info.get("state", "OK")
+        text = f"**{name}**: {state}"
+        if state == "OK":
+            st.success(text)
+        else:
+            st.error(text)
+        if info.get("message"):
+            st.caption(info["message"])
+        approved = info.get("baseline")
+        if approved:
+            st.caption(
+                f"Baseline approved by {approved.get('approved_by')} at {approved.get('approved_at')}: "
+                f"{approved.get('reason')}"
+            )
+
+alerts = dashboard.alerts(records)
+if not alerts:
+    st.success("Secure. No unapproved logic changes detected.")
 else:
-    st.error(f"{len(logs)} Unauthorized Changes Detected!")
-    
-    for idx, log in enumerate(logs):
-        with st.expander(f"[{log['timestamp']}] {log['mitre_tactic']} (Severity: {log['severity']})", expanded=(idx==0)):
-            cols = st.columns(3)
-            cols[0].metric("Event", log['event_type'])
-            cols[1].metric("MITRE Tactic", log['mitre_attack_ics'])
-            cols[2].metric("Target File", log['file_path'])
-            
-            st.markdown("### Visual Diff (Approved vs Altered)")
-            
-            # Format Diff
-            diff_lines = log.get('diff_summary', '').split('\n')
-            formatted_diff = ""
-            for line in diff_lines:
-                # The diff content comes from the monitored PLC file itself,
-                # which is exactly what an attacker controls - it must be
-                # HTML-escaped before going into unsafe_allow_html markdown,
-                # otherwise a crafted file content is a stored-XSS payload
-                # against whoever is viewing this dashboard.
-                escaped_line = html.escape(line)
-                if line.startswith('+') and not line.startswith('+++'):
-                    formatted_diff += f'<div class="diff-add">{escaped_line}</div>'
-                elif line.startswith('-') and not line.startswith('---'):
-                    formatted_diff += f'<div class="diff-remove">{escaped_line}</div>'
-                else:
-                    formatted_diff += f'<div class="diff-neutral">{escaped_line}</div>'
-            
-            st.markdown(f"<div class='diff-container'>{formatted_diff}</div>", unsafe_allow_html=True)
-            
+    st.error(f"{len(alerts)} alert(s) recorded")
+    for index, record in enumerate(alerts):
+        details = record.get("otguard", {})
+        techniques = ", ".join(
+            f"{t['id']} {t['name']}" for t in record.get("threat", {}).get("technique", [])
+        )
+        when = record.get("@timestamp", "")[:19]
+        title = f"[{when}] {details.get('severity', '')}: {record.get('message', '')}"
+        with st.expander(title, expanded=index == 0):
+            if techniques:
+                tactics = ", ".join(t["name"] for t in record.get("threat", {}).get("tactic", []))
+                st.markdown(f"**MITRE ATT&CK for ICS:** {techniques} (tactic: {tactics})")
+            rows = dashboard.change_rows(record)
+            if rows:
+                st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+            if details.get("error"):
+                st.code(details["error"])
+            if details.get("diff"):
+                st.markdown("**Approved vs current (normalized)**")
+                st.markdown(dashboard.diff_html(details["diff"]), unsafe_allow_html=True)
+
+with st.expander("All ledger events"):
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "seq": r.get("seq"),
+                    "time": r.get("@timestamp"),
+                    "action": dashboard.action(r),
+                    "severity": r.get("otguard", {}).get("severity"),
+                    "message": r.get("message"),
+                }
+                for r in reversed(records)
+            ]
+        ),
+        hide_index=True,
+        width="stretch",
+    )
+
 st.markdown("---")
-st.caption("OT-Guard | Cyber Sanjeevni | Designed for Real-World OT Reality")
+st.caption(
+    "OT-Guard | Cyber Sanjeevni prototype | read-only dashboard; approvals go through `otguard approve`"
+)
