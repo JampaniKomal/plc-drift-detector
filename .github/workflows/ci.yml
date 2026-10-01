@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip
+      - run: pip install ruff
+      - run: ruff check .
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: ubuntu-latest
+            python: "3.13"
+          - os: windows-latest
+            python: "3.13"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install --upgrade pip
+      - run: pip install .[dev]
+      - run: pytest -q
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t otguard:ci .
+      - name: Approve, tamper, detect, verify
+        run: |
+          docker run --rm --entrypoint sh \
+            -e OT_GUARD_SECRET_KEY=ci-smoke-test-secret-key \
+            otguard:ci -c '
+              set -e
+              otguard demo init /tmp/demo --approve
+              otguard --config /tmp/demo/otguard.toml check
+              otguard --config /tmp/demo/otguard.toml demo attack invert-contact
+              if otguard --config /tmp/demo/otguard.toml check; then
+                echo "FAIL: drift was not detected"; exit 1
+              fi
+              otguard --config /tmp/demo/otguard.toml verify-ledger
+              echo "docker smoke OK"
+            '

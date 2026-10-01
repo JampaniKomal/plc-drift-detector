@@ -1,37 +1,56 @@
+# Local demo: `docker compose up --build`.
+#
+#   engine   seeds a demo workspace in the shared /data volume, signs the
+#            sample project as the approved baseline, then watches it.
+#   ui       serves the read-only dashboard on http://127.0.0.1:8501.
+#   attacker (profile "tools") tampers with the watched file on request, so
+#            you can watch the engine and dashboard react:
+#
+#       docker compose run --rm attacker                      # invert a contact
+#       docker compose run --rm attacker demo attack list     # all scenarios
+#       docker compose run --rm attacker demo attack raise-setpoint
+#
+# OT_GUARD_SECRET_KEY below is the public demo value on purpose. A real
+# deployment supplies its own secret (a secrets manager, or an uncommitted
+# .env) and never reuses this one - it is what signs baselines and the ledger.
+
 services:
   engine:
     build: .
-    command: python -m engine.monitor
-    volumes:
-      - ./plc_config:/app/plc_config
-      - ./logs:/app/logs
-    restart: unless-stopped
+    entrypoint: ["sh", "-c", "otguard demo init /data --approve && exec otguard watch"]
     environment:
-      - WATCH_DIR=/app/plc_config
-      - BASELINE_FILE=/app/plc_config/baseline.xml
-      - LOG_DIR=/app/logs
-      # Demo-only value for local `docker-compose up`. A real deployment
-      # must supply its own secret (e.g. via a secrets manager or .env
-      # file that is not committed) - never reuse this value.
-      - OT_GUARD_SECRET_KEY=demo-local-only-do-not-use-in-production
+      OT_GUARD_SECRET_KEY: demo-local-only-do-not-use-in-production
+    volumes:
+      - otguard-data:/data
+    restart: unless-stopped
 
   ui:
     build: .
-    command: streamlit run ui/app.py --server.port=8501 --server.address=0.0.0.0
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+    # Wait for the engine to create the workspace, then serve the dashboard.
+    entrypoint:
+      - sh
+      - -c
+      - 'until [ -f /data/otguard.toml ]; do sleep 1; done; exec streamlit run ui/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true'
     environment:
-      - LOG_DIR=/app/logs
+      OT_GUARD_SECRET_KEY: demo-local-only-do-not-use-in-production
+    volumes:
+      - otguard-data:/data:ro
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on:
+      - engine
+    restart: unless-stopped
 
   attacker:
     build: .
-    command: python tools/simulate_attack.py
+    entrypoint: ["otguard"]
+    command: ["demo", "attack", "invert-contact"]
+    environment:
+      OT_GUARD_SECRET_KEY: demo-local-only-do-not-use-in-production
     volumes:
-      - ./plc_config:/app/plc_config
+      - otguard-data:/data
     profiles:
       - tools
-    environment:
-      - WATCH_DIR=/app/plc_config
+
+volumes:
+  otguard-data:
