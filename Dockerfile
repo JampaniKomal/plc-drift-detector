@@ -1,7 +1,7 @@
 # OT-Guard runs the same image for every role (engine, dashboard, attacker);
 # docker-compose picks the command. lxml ships manylinux wheels, so no build
 # toolchain is needed on python:3.12-slim.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Drop privileges: the engine only ever reads the watched files and appends to
 # the ledger under /data, so it has no reason to run as root.
