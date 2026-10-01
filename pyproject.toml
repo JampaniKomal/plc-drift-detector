@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ot-guard"
+version = "2.0.0"
+description = "Detects unapproved changes to PLC (Rockwell L5X) ladder-logic projects: semantic rung and setpoint diff, signed baselines, tamper-evident ATT&CK-for-ICS alerts."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jampani Komal" }]
+requires-python = ">=3.11"
+dependencies = ["lxml>=6.1,<7", "watchdog>=6,<7"]
+
+[project.optional-dependencies]
+dashboard = ["streamlit>=1.64,<2"]
+dev = ["pytest>=9.1", "ruff>=0.16", "streamlit>=1.64,<2"]
+
+[project.scripts]
+otguard = "otguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["otguard*"]
+
+[tool.setuptools.package-data]
+otguard = ["data/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # L5X fixtures are long XML lines

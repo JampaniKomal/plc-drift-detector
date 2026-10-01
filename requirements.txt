@@ -1,3 +1,4 @@
+# Engine and command line; see pyproject.toml. The dashboard also needs streamlit.
 lxml==6.1.0
-watchdog==4.0.0
-streamlit==1.54.0
+watchdog==6.0.0
+streamlit==1.64.0

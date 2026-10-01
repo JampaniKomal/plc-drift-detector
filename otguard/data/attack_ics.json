@@ -1,0 +1,41 @@
+{
+  "attack_ics_version": "19.2",
+  "techniques": {
+    "T0836": {
+      "name": "Modify Parameter",
+      "tactics": [
+        {
+          "id": "TA0106",
+          "name": "Impair Process Control"
+        }
+      ]
+    },
+    "T0821": {
+      "name": "Modify Controller Tasking",
+      "tactics": [
+        {
+          "id": "TA0104",
+          "name": "Execution"
+        }
+      ]
+    },
+    "T0838": {
+      "name": "Modify Alarm Settings",
+      "tactics": [
+        {
+          "id": "TA0107",
+          "name": "Inhibit Response Function"
+        }
+      ]
+    },
+    "T0889": {
+      "name": "Modify Program",
+      "tactics": [
+        {
+          "id": "TA0110",
+          "name": "Persistence"
+        }
+      ]
+    }
+  }
+}
